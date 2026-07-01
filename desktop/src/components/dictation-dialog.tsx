@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useHotkeyProvider, type HotkeyOutputMode } from '~/providers/hotkey'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '~/components/ui/dialog'
 import { Switch } from '~/components/ui/switch'
-import { Input } from '~/components/ui/input'
+import HotkeyCapture from '~/components/hotkey-capture'
 import { Mic, Settings2 } from 'lucide-react'
 
 export default function DictationDialog() {
@@ -66,23 +66,10 @@ export default function DictationDialog() {
 					{hotkey.hotkeyEnabled && (
 						<>
 							<div className="space-y-1.5">
-								<div className="flex items-center gap-2">
-									<span className="text-xs text-muted-foreground">{t('common.global-hotkey-shortcut')}:</span>
-									<div className="flex items-center gap-1">
-										{shortcutKeys.map((key, i) => (
-											<kbd
-												key={i}
-												className="inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-border/80 bg-background/70 px-2 font-mono text-xs font-medium text-foreground/80 shadow-[0_1px_0_1px_rgba(0,0,0,0.04)]">
-												{key}
-											</kbd>
-										))}
-									</div>
-								</div>
-								<Input
-									type="text"
+								<span className="text-xs text-muted-foreground">{t('common.global-hotkey-shortcut')}:</span>
+								<HotkeyCapture
 									value={hotkey.hotkeyShortcut}
-									onChange={(e) => hotkey.setHotkeyShortcut(e.target.value)}
-									className="h-7 text-xs text-muted-foreground"
+									onChange={hotkey.setHotkeyShortcut}
 								/>
 							</div>
 							<div className="flex gap-2">
