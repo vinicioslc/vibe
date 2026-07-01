@@ -9,6 +9,8 @@ use eyre::eyre;
 use once_cell::sync::Lazy;
 use std::fs;
 use tauri::{App, Manager};
+use tauri::menu::{MenuBuilder, MenuItemBuilder};
+use tauri::tray::TrayIconBuilder;
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 use tauri_plugin_store::StoreExt;
 use tokio::sync::Mutex;
@@ -19,6 +21,10 @@ pub struct SonaState {
     pub process: Option<SonaProcess>,
     pub loaded_model_path: Option<String>,
     pub loaded_gpu_device: Option<i32>,
+}
+
+pub struct TrayState {
+    pub _tray: tauri::tray::TrayIcon,
 }
 
 pub fn setup(app: &App) -> Result<(), Box<dyn std::error::Error>> {
@@ -111,8 +117,8 @@ pub fn setup(app: &App) -> Result<(), Box<dyn std::error::Error>> {
         });
     } else {
         tracing::debug!("Non CLI mode");
-        // Create main window
-        let result = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
+        // Create main window with close-to-tray behavior
+        let main_window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
             .inner_size(800.0, 700.0)
             .min_inner_size(800.0, 700.0)
             .center()
@@ -122,8 +128,61 @@ pub fn setup(app: &App) -> Result<(), Box<dyn std::error::Error>> {
             .shadow(true)
             .visible(true)
             .build();
-        if let Err(error) = result {
+        if let Ok(main_window) = &main_window {
+            let app_handle = app.handle().clone();
+            main_window.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        let _ = window.hide();
+                    }
+                }
+            });
+        }
+        if let Err(error) = main_window {
             tracing::error!("{:?}", error);
+        }
+
+        // System tray
+        if let Some(icon) = app.default_window_icon() {
+            let show = MenuItemBuilder::with_id("show", "Show").build(app).ok();
+            let quit = MenuItemBuilder::with_id("quit", "Quit").build(app).ok();
+
+            if let (Some(show), Some(quit)) = (&show, &quit) {
+                if let Ok(menu) = MenuBuilder::new(app).item(show).item(quit).build() {
+                    if let Ok(tray) = TrayIconBuilder::new()
+                        .icon(icon.clone())
+                        .menu(&menu)
+                        .tooltip("Vibe")
+                        .on_tray_icon_event(|tray, event| {
+                            if let tauri::tray::TrayIconEvent::Click { .. } = event {
+                                let app = tray.app_handle();
+                                if let Some(window) = app.get_webview_window("main") {
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                }
+                            }
+                        })
+                        .on_menu_event(|app, event| {
+                            match event.id().as_ref() {
+                                "show" => {
+                                    if let Some(window) = app.get_webview_window("main") {
+                                        let _ = window.show();
+                                        let _ = window.set_focus();
+                                    }
+                                }
+                                "quit" => {
+                                    app.exit(0);
+                                }
+                                _ => {}
+                            }
+                        })
+                        .build(app)
+                    {
+                        app.manage(TrayState { _tray: tray });
+                    }
+                }
+            }
         }
     }
     Ok(())
