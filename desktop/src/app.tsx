@@ -6,6 +6,7 @@ import '~/lib/i18n'
 import SetupPage from '~/pages/setup/page'
 import HomePage from '~/pages/home/page'
 import BatchPage from './pages/batch/page'
+import RecordingIndicator from '~/components/recording-indicator'
 import { ErrorModalProvider } from './providers/error-modal'
 import { UpdaterProvider } from './providers/updater'
 import { PreferenceProvider } from './providers/preference'
@@ -40,6 +41,7 @@ export default function App() {
 											<Route path="/" element={<HomePage />} />
 											<Route path="/setup" element={<SetupPage />} />
 											<Route path="/batch" element={<BatchPage />} />
+											<Route path="/recording-indicator" element={<RecordingIndicator />} />
 										</Routes>
 									</FilesProvider>
 									<Toaster position="bottom-right" />

@@ -1,6 +1,8 @@
 import { ReactNode, createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { emit, listen } from '@tauri-apps/api/event'
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
+import { currentMonitor } from '@tauri-apps/api/window'
 import { register, unregister, isRegistered } from '@tauri-apps/plugin-global-shortcut'
 import * as clipboard from '@tauri-apps/plugin-clipboard-manager'
 import { useLocalStorage } from 'usehooks-ts'
@@ -64,6 +66,7 @@ export function HotkeyProvider({ children }: { children: ReactNode }) {
 	const isHotkeyRecordingRef = useRef(false)
 	const hotkeyOutputModeRef = useRef(hotkeyOutputMode)
 	const registeredShortcutRef = useRef<string | null>(null)
+	const overlayWindowRef = useRef<WebviewWindow | null>(null)
 
 	useEffect(() => {
 		preferenceRef.current = preference
@@ -72,6 +75,47 @@ export function HotkeyProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		hotkeyOutputModeRef.current = hotkeyOutputMode
 	}, [hotkeyOutputMode])
+
+	async function openOverlay() {
+		if (overlayWindowRef.current) return
+		try {
+			const monitor = await currentMonitor()
+			const w = 280
+			const h = 56
+			const x = monitor ? Math.round((monitor.size.width - w) / 2) : 0
+			const y = monitor ? monitor.size.height - h - 48 : 0
+
+			const win = new WebviewWindow('recording-indicator', {
+				url: '/recording-indicator',
+				width: w,
+				height: h,
+				x,
+				y,
+				decorations: false,
+				alwaysOnTop: true,
+				skipTaskbar: true,
+				transparent: true,
+			})
+
+			overlayWindowRef.current = win
+			win.once('tauri://error', () => {
+				overlayWindowRef.current = null
+			})
+		} catch (err) {
+			console.error('Failed to create overlay:', err)
+		}
+	}
+
+	async function closeOverlay() {
+		const win = overlayWindowRef.current
+		if (!win) return
+		overlayWindowRef.current = null
+		try {
+			await win.close()
+		} catch (err) {
+			console.error('Failed to close overlay:', err)
+		}
+	}
 
 	const createLlm = useCallback((): Llm | null => {
 		const config = preferenceRef.current.llmConfig
@@ -110,6 +154,7 @@ export function HotkeyProvider({ children }: { children: ReactNode }) {
 
 	const handleHotkeyUp = useCallback(async () => {
 		if (!isHotkeyRecordingRef.current) return
+		closeOverlay()
 		await emit('stop_record')
 	}, [])
 
@@ -211,6 +256,12 @@ export function HotkeyProvider({ children }: { children: ReactNode }) {
 			}
 		}
 	}, [hotkeyEnabled, hotkeyShortcut, handleHotkeyDown, handleHotkeyUp])
+
+	useEffect(() => {
+		if (isHotkeyRecording) {
+			openOverlay()
+		}
+	}, [isHotkeyRecording])
 
 	const value: HotkeyContextType = {
 		hotkeyEnabled,

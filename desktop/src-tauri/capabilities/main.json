@@ -4,7 +4,8 @@
   "description": "default permissions",
   "local": true,
   "windows": [
-    "main"
+    "main",
+    "recording-indicator"
   ],
   "permissions": [
     "http:default",
@@ -32,15 +33,19 @@
     "os:allow-os-type",
     "os:allow-locale",
     "core:window:default",
+    "core:window:allow-create",
     "core:window:allow-unminimize",
     "core:window:allow-set-focus",
     "core:window:allow-close",
     "core:window:allow-destroy",
     "core:window:allow-show",
     "core:window:allow-is-visible",
+    "core:window:allow-set-position",
+    "core:window:allow-set-size",
     "window-state:allow-restore-state",
     "window-state:allow-save-window-state",
     "core:webview:default",
+    "core:webview:allow-create-webview-window",
     "core:webview:allow-print",
     "dialog:default",
     "dialog:allow-open",
